@@ -2,7 +2,6 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: busybox
-  namespace: default
 spec:
   replicas: 1
   selector:
@@ -21,3 +20,10 @@ spec:
           command:
             - "sleep"
             - "1h"
+          volumeMounts:
+            - name: testmap
+              mountPath: /etc/config
+      volumes:
+        - name: testmap
+          configMap:
+            name: testmap
