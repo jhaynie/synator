@@ -54,4 +54,4 @@ spec:
       serviceAccountName: synator
       containers:
         - name: synator
-          image: jhaynie/synator:v2
+          image: jhaynie/synator:latest
