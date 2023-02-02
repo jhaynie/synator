@@ -6,6 +6,7 @@ from prodict import Prodict
 
 
 SYNC_LABEL = 'synator/sync'
+SYNC_WAVE_LABEL = 'argocd.argoproj.io/sync-wave'
 INCLUDE_NAMESPACES_ANNOTATION = 'synator/include-namespaces'
 EXCLUDE_NAMESPACES_ANNOTATION = 'synator/exclude-namespaces'
 INCLUDE_LABELS_ANNOTATION = 'synator/include-labels'
@@ -18,6 +19,8 @@ MANAGED_BY_LABEL = 'synator'
 
 watched_namespaces = os.getenv('WATCHED_NAMESPACES', "")
 watched_namespaces = watched_namespaces.split(',') if watched_namespaces else []
+excluded_namespaces = os.getenv("EXCLUDED_NAMESPACES", "")
+excluded_namespaces = excluded_namespaces.split(',') if excluded_namespaces else []
 
 kubernetes.config.load_config()
 api = kubernetes.client.CoreV1Api()
@@ -27,9 +30,13 @@ api = kubernetes.client.CoreV1Api()
 def handle_startup(logger, **_):
     if watched_namespaces:
         logger.info(f"Watching namespaces: {watched_namespaces or 'ALL'}")
+    if excluded_namespaces:
+        logger.info(f"Excluding namespaces: {excluded_namespaces or 'NONE'}")
 
 
 def _is_watched_namespace(namespace, **_):
+    if namespace in excluded_namespaces:
+        return False
     if not watched_namespaces or namespace in watched_namespaces:
         return True
     return False
@@ -57,7 +64,7 @@ def handle_delete(resource, name, namespace, annotations, logger, **_):
         _delete(resource.kind, name, target_namespace, logger)
 
 
-@kopf.on.create('', 'v1', 'namespaces')
+@kopf.on.create('', 'v1', 'namespaces', labels={SYNC_WAVE_LABEL: kopf.PRESENT}, when=_is_watched_namespace)
 def handle_create_namespace(name, logger, **_):
     api_response = api.list_secret_for_all_namespaces(label_selector=f'{SYNC_LABEL}==yes')
     for secret in api_response.items:
